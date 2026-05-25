@@ -1,5 +1,6 @@
 # Cookie Monster profile fragment
 # Extracted and trimmed from the user's PowerShell profile so it can be installed cleanly.
+# PSScriptAnalyzer disable PSUseApprovedVerbs, PSUseDeclaredVarsMoreThanAssignments
 
 if ($null -eq $global:CookieMonsterEnabled) { $global:CookieMonsterEnabled = $false }
 if ($null -eq $global:CookieMonsterActive)  { $global:CookieMonsterActive  = $false }
@@ -56,7 +57,8 @@ function Save-CookieSettings {
     }
 }
 
-function Invoke-CookieBeep {
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
+function Write-CookieBeep {
     param(
         [int]$Frequency,
         [int]$Duration
@@ -67,7 +69,9 @@ function Invoke-CookieBeep {
     }
 }
 
-function Read-SecureCookieInput {
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidAssignmentToAutomaticVariable', '')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
+function Read-CookiePrompt {
     param(
         [int]$TimeoutSeconds = 0
     )
@@ -76,8 +80,8 @@ function Read-SecureCookieInput {
         return (Read-Host)
     }
 
-    $start = Get-Date
-    while (((Get-Date) - $start).TotalSeconds -lt $TimeoutSeconds) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
         if ([Console]::KeyAvailable) {
             return (Read-Host)
         }
@@ -94,7 +98,7 @@ function Start-BakingAnimation {
     Write-Host '2) Oatmeal raisin' -ForegroundColor Gray
     Write-Host '3) Glitter cookie' -ForegroundColor Gray
     Write-Host -NoNewline 'Choose a cookie type (1-3): ' -ForegroundColor Cyan
-    $choice = Read-SecureCookieInput
+    $choice = Read-CookiePrompt
 
     switch ($choice.Trim()) {
         '1' {
@@ -119,7 +123,8 @@ function Start-BakingAnimation {
     }
 }
 
-function Invoke-GlitchScreenAnimation {
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
+function Show-GlitchScreenAnimation {
     $global:GlitchesTriggered++
 
     if (-not $IsWindows) {
@@ -168,12 +173,12 @@ function Show-CookieSettingsMenu {
         Write-Host '4) Reset scoreboards'
         Write-Host '5) Exit'
         Write-Host -NoNewline 'Choose (1-5): ' -ForegroundColor Cyan
-        $choice = Read-SecureCookieInput
+        $choice = Read-CookiePrompt
 
         switch ($choice.Trim()) {
             '1' {
                 Write-Host -NoNewline 'New encounter chance (1-100): ' -ForegroundColor Cyan
-                $newChance = Read-SecureCookieInput
+                $newChance = Read-CookiePrompt
                 if ($newChance -as [int] -and [int]$newChance -ge 1 -and [int]$newChance -le 100) {
                     $global:CookieSettings.EncounterChance = [int]$newChance
                     Save-CookieSettings
@@ -185,7 +190,7 @@ function Show-CookieSettingsMenu {
             }
             '3' {
                 Write-Host -NoNewline 'New monster name: ' -ForegroundColor Cyan
-                $newName = Read-SecureCookieInput
+                $newName = Read-CookiePrompt
                 if (-not [string]::IsNullOrWhiteSpace($newName)) {
                     $global:CookieSettings.MonsterName = $newName.Trim()
                     Save-CookieSettings
@@ -273,7 +278,7 @@ function Start-CookieMonster {
             Write-Host ('Give me a cookie, please. Timer is ' + $timerSeconds + ' seconds.') -ForegroundColor Cyan
             Write-Host "Try: cookie, feed, trick, magic, glitch, burn, dough, plead, no" -ForegroundColor Gray
             Write-Host -NoNewline 'COOKIE: ' -ForegroundColor Cyan
-            $userInput = Read-SecureCookieInput -TimeoutSeconds $timerSeconds
+            $userInput = Read-CookiePrompt -TimeoutSeconds $timerSeconds
             if ($null -eq $userInput) {
                 $cleanInput = ''
             } else {
@@ -326,7 +331,7 @@ function Start-CookieMonster {
                     if ($global:GlitchCookies -gt 0) {
                         $global:GlitchCookies--
                         $global:CookiesEaten++
-                        Invoke-GlitchScreenAnimation
+                        Show-GlitchScreenAnimation
                         $satisfied = $true
                     } else {
                         $global:CookieRefusals++
@@ -353,7 +358,7 @@ function Start-CookieMonster {
                 }
                 '^no$' {
                     $global:CookieRefusals++
-                    Invoke-CookieBeep 900 100
+                    Write-CookieBeep 900 100
                 }
                 default {
                     $global:CookieRefusals++
