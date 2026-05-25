@@ -63,6 +63,8 @@ Directories used by the native installer
 
 If you don't have PowerShell on your macOS or Linux machine, the native installer provides a fully POSIX-compatible CLI implemented in `cookie` and managed by `install.sh`.
 
+See `docs/INSTALL.md` for per-platform installation instructions, troubleshooting, and packaging notes.
+
 ## Cross-platform notes
 
 - The installer targets PowerShell 7 on Windows, macOS, and Linux.
