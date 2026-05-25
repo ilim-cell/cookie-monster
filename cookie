@@ -1,0 +1,518 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_NAME='cookie-monster'
+REPO_DEFAULT='ilim-cell/cookie-monster'
+
+home_dir="${HOME:-$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6 || printf '%s' "$PWD") }"
+config_dir="${COOKIE_MONSTER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$home_dir/.config}/cookie-monster}"
+data_dir="${COOKIE_MONSTER_DATA_DIR:-${XDG_DATA_HOME:-$home_dir/.local/share}/cookie-monster}"
+cache_dir="${COOKIE_MONSTER_CACHE_DIR:-${XDG_CACHE_HOME:-$home_dir/.cache}/cookie-monster}"
+state_file="$data_dir/state.env"
+settings_file="$config_dir/settings.env"
+
+ensure_dir() {
+  mkdir -p "$1"
+}
+
+shell_quote() {
+  local value="${1-}"
+  printf "'%s'" "${value//\'/\'\\\'\'}"
+}
+
+save_env_file() {
+  local path="$1"
+  shift
+
+  ensure_dir "$(dirname "$path")"
+  : >"$path"
+
+  while [ "$#" -gt 0 ]; do
+    local key="$1"
+    local value="$2"
+    shift 2
+    printf '%s=%s\n' "$key" "$(shell_quote "$value")" >>"$path"
+  done
+}
+
+load_env_file() {
+  local path="$1"
+  if [ -f "$path" ]; then
+    # shellcheck disable=SC1090
+    . "$path"
+  fi
+}
+
+init_defaults() {
+  : "${COOKIE_MONSTER_ENABLED:=0}"
+  : "${COOKIE_MONSTER_ENCOUNTERS:=0}"
+  : "${COOKIE_MONSTER_COOKIES_EATEN:=0}"
+  : "${COOKIE_MONSTER_REFUSALS:=0}"
+  : "${COOKIE_MONSTER_BAKED:=0}"
+  : "${COOKIE_MONSTER_OATMEAL:=0}"
+  : "${COOKIE_MONSTER_GLITTER:=0}"
+  : "${COOKIE_MONSTER_BURNT:=0}"
+  : "${COOKIE_MONSTER_RAW_DOUGH:=0}"
+  : "${COOKIE_MONSTER_JUNK:=0}"
+  : "${COOKIE_MONSTER_GLITCH:=0}"
+  : "${COOKIE_MONSTER_CUSTOM:=0}"
+  : "${COOKIE_MONSTER_TIME_OUTS:=0}"
+  : "${COOKIE_MONSTER_GLITTER_FED:=0}"
+  : "${COOKIE_MONSTER_MISSIONS:=0}"
+  : "${COOKIE_MONSTER_ESCAPES:=0}"
+  : "${COOKIE_MONSTER_BEEPS_ENABLED:=1}"
+  : "${COOKIE_MONSTER_ENCOUNTER_CHANCE:=5}"
+  : "${COOKIE_MONSTER_MONSTER_NAME:=Cookie Monster}"
+}
+
+save_settings() {
+  save_env_file "$settings_file" \
+    COOKIE_MONSTER_BEEPS_ENABLED "$COOKIE_MONSTER_BEEPS_ENABLED" \
+    COOKIE_MONSTER_ENCOUNTER_CHANCE "$COOKIE_MONSTER_ENCOUNTER_CHANCE" \
+    COOKIE_MONSTER_MONSTER_NAME "$COOKIE_MONSTER_MONSTER_NAME"
+}
+
+save_state() {
+  save_env_file "$state_file" \
+    COOKIE_MONSTER_ENABLED "$COOKIE_MONSTER_ENABLED" \
+    COOKIE_MONSTER_ENCOUNTERS "$COOKIE_MONSTER_ENCOUNTERS" \
+    COOKIE_MONSTER_COOKIES_EATEN "$COOKIE_MONSTER_COOKIES_EATEN" \
+    COOKIE_MONSTER_REFUSALS "$COOKIE_MONSTER_REFUSALS" \
+    COOKIE_MONSTER_BAKED "$COOKIE_MONSTER_BAKED" \
+    COOKIE_MONSTER_OATMEAL "$COOKIE_MONSTER_OATMEAL" \
+    COOKIE_MONSTER_GLITTER "$COOKIE_MONSTER_GLITTER" \
+    COOKIE_MONSTER_BURNT "$COOKIE_MONSTER_BURNT" \
+    COOKIE_MONSTER_RAW_DOUGH "$COOKIE_MONSTER_RAW_DOUGH" \
+    COOKIE_MONSTER_JUNK "$COOKIE_MONSTER_JUNK" \
+    COOKIE_MONSTER_GLITCH "$COOKIE_MONSTER_GLITCH" \
+    COOKIE_MONSTER_CUSTOM "$COOKIE_MONSTER_CUSTOM" \
+    COOKIE_MONSTER_TIME_OUTS "$COOKIE_MONSTER_TIME_OUTS" \
+    COOKIE_MONSTER_GLITTER_FED "$COOKIE_MONSTER_GLITTER_FED" \
+    COOKIE_MONSTER_MISSIONS "$COOKIE_MONSTER_MISSIONS" \
+    COOKIE_MONSTER_ESCAPES "$COOKIE_MONSTER_ESCAPES"
+}
+
+load_state() {
+  load_env_file "$state_file"
+  load_env_file "$settings_file"
+  init_defaults
+}
+
+is_tty() {
+  [ -t 0 ] && [ -t 1 ]
+}
+
+clear_screen() {
+  if command -v clear >/dev/null 2>&1; then
+    clear
+  elif is_tty; then
+    printf '\033[H\033[J'
+  fi
+}
+
+show_banner() {
+  local title="${1:-COOKIE MONSTER}"
+  local subtitle="${2:-Native cross-platform shell mode}"
+  local line='===================================================================='
+
+  printf '%s\n' "+$line+"
+  printf '| %-66s |\n' "$title"
+  printf '| %-66s |\n' "$subtitle"
+  printf '| %-66s |\n' ''
+  printf '| %-66s |\n' '  .-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-.  '
+  printf '| %-66s |\n' '  ( Cookie Monster is preparing your install experience... )   '
+  printf '| %-66s |\n' '  `-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-` '
+  printf '| %-66s |\n' ''
+  printf '%s\n' "+$line+"
+}
+
+spinner() {
+  local message="$1"
+  local duration_seconds="${2:-1}"
+  local frames='[. ][o ][oo][ o][  ]'
+
+  if ! is_tty; then
+    printf '%s\n' "$message"
+    return 0
+  fi
+
+  local frame_count=5
+  local frame_delay
+  frame_delay="$(awk -v d="$duration_seconds" -v c="$frame_count" 'BEGIN { if (d <= 0) d = 1; printf "%.2f", d / c }')"
+  local i
+  for i in 0 1 2 3 4; do
+    local frame
+    frame="${frames:$((i * 5)):5}"
+    printf '\r%s %s' "$frame" "$message"
+    sleep "$frame_delay"
+  done
+  printf '\r%s\n' "$message"
+}
+
+beep() {
+  if [ "$COOKIE_MONSTER_BEEPS_ENABLED" -eq 1 ] && is_tty; then
+    printf '\a'
+  fi
+}
+
+read_input() {
+  local timeout="${1:-0}"
+  local reply=''
+
+  if [ "$timeout" -gt 0 ] && is_tty; then
+    if read -r -t "$timeout" reply; then
+      printf '%s\n' "$reply"
+      return 0
+    fi
+    printf '__TIMEOUT__\n'
+    return 0
+  fi
+
+  if read -r reply; then
+    printf '%s\n' "$reply"
+  else
+    printf '\n'
+  fi
+}
+
+scoreboard() {
+  printf '\nCOOKIE MONSTER SCOREBOARD\n'
+  printf 'Encounters: %s\n' "$COOKIE_MONSTER_ENCOUNTERS"
+  printf 'Cookies Eaten: %s\n' "$COOKIE_MONSTER_COOKIES_EATEN"
+  printf 'Refusals: %s\n' "$COOKIE_MONSTER_REFUSALS"
+  printf 'Baked Cookies: %s\n' "$COOKIE_MONSTER_BAKED"
+  printf 'Oatmeal Cookies: %s\n' "$COOKIE_MONSTER_OATMEAL"
+  printf 'Glitter Cookies: %s\n' "$COOKIE_MONSTER_GLITTER"
+  printf 'Burnt Cookies: %s\n' "$COOKIE_MONSTER_BURNT"
+  printf 'Raw Dough: %s\n' "$COOKIE_MONSTER_RAW_DOUGH"
+  printf 'Junk Cookies: %s\n' "$COOKIE_MONSTER_JUNK"
+  printf 'Glitch Cookies: %s\n' "$COOKIE_MONSTER_GLITCH"
+  printf 'Custom Cookies: %s\n' "$COOKIE_MONSTER_CUSTOM"
+}
+
+help_text() {
+  cat <<'EOF'
+cookie
+  Launch the Cookie Monster.
+cookie --on
+  Enable random encounters.
+cookie --off
+  Disable random encounters.
+cookie --toggle
+  Toggle random encounters.
+cookie --bake
+  Bake a cookie batch.
+cookie --scoreboard
+  View counters and achievements.
+cookie --settings
+  Update preferences.
+cookie --help
+  Show this help.
+EOF
+}
+
+bake_cookie() {
+  printf '\nCookie Monster baking lab\n'
+  printf '1) Chocolate chip\n'
+  printf '2) Oatmeal raisin\n'
+  printf '3) Glitter cookie\n'
+  printf 'Choose a cookie type (1-3): '
+  local choice
+  choice="$(read_input 0)"
+  choice="$(printf '%s' "$choice" | tr '[:upper:]' '[:lower:]')"
+
+  case "$choice" in
+    1|cookie|chocolate\ chip|choc*)
+      COOKIE_MONSTER_BAKED=$((COOKIE_MONSTER_BAKED + 1))
+      printf 'Baked a perfect chocolate chip cookie.\n'
+      ;;
+    2|oatmeal|raisin*)
+      COOKIE_MONSTER_OATMEAL=$((COOKIE_MONSTER_OATMEAL + 1))
+      printf 'Baked an oatmeal raisin cookie.\n'
+      ;;
+    3|glitter*)
+      COOKIE_MONSTER_GLITTER=$((COOKIE_MONSTER_GLITTER + 1))
+      printf 'Baked a glitter cookie.\n'
+      ;;
+    *)
+      COOKIE_MONSTER_BURNT=$((COOKIE_MONSTER_BURNT + 1))
+      printf 'The oven won. You got a burnt cookie.\n'
+      ;;
+  esac
+
+  save_state
+}
+
+settings_menu() {
+  local done=0
+  while [ "$done" -eq 0 ]; do
+    printf '\nCookie Monster settings for %s\n' "$COOKIE_MONSTER_MONSTER_NAME"
+    printf '1) Change encounter chance\n'
+    printf '2) Toggle beep sounds\n'
+    printf '3) Change monster name\n'
+    printf '4) Reset scoreboards\n'
+    printf '5) Exit\n'
+    printf 'Choose (1-5): '
+
+    local choice
+    choice="$(read_input 0)"
+
+    case "$choice" in
+      1)
+        printf 'New encounter chance (1-100): '
+        local new_chance
+        new_chance="$(read_input 0)"
+        if [ "$new_chance" -ge 1 ] 2>/dev/null && [ "$new_chance" -le 100 ] 2>/dev/null; then
+          COOKIE_MONSTER_ENCOUNTER_CHANCE="$new_chance"
+          save_settings
+        fi
+        ;;
+      2)
+        if [ "$COOKIE_MONSTER_BEEPS_ENABLED" -eq 1 ]; then
+          COOKIE_MONSTER_BEEPS_ENABLED=0
+        else
+          COOKIE_MONSTER_BEEPS_ENABLED=1
+        fi
+        save_settings
+        ;;
+      3)
+        printf 'New monster name: '
+        local new_name
+        new_name="$(read_input 0)"
+        if [ -n "$(printf '%s' "$new_name" | tr -d '[:space:]')" ]; then
+          COOKIE_MONSTER_MONSTER_NAME="$new_name"
+          save_settings
+        fi
+        ;;
+      4)
+        COOKIE_MONSTER_ENCOUNTERS=0
+        COOKIE_MONSTER_COOKIES_EATEN=0
+        COOKIE_MONSTER_REFUSALS=0
+        COOKIE_MONSTER_BAKED=0
+        COOKIE_MONSTER_OATMEAL=0
+        COOKIE_MONSTER_GLITTER=0
+        COOKIE_MONSTER_BURNT=0
+        COOKIE_MONSTER_RAW_DOUGH=0
+        COOKIE_MONSTER_JUNK=0
+        COOKIE_MONSTER_GLITCH=0
+        COOKIE_MONSTER_CUSTOM=0
+        COOKIE_MONSTER_TIME_OUTS=0
+        COOKIE_MONSTER_GLITTER_FED=0
+        COOKIE_MONSTER_MISSIONS=0
+        COOKIE_MONSTER_ESCAPES=0
+        save_state
+        ;;
+      5)
+        done=1
+        ;;
+    esac
+  done
+}
+
+interactive_monster() {
+  local bypassed="${1:-0}"
+  COOKIE_MONSTER_ENCOUNTERS=$((COOKIE_MONSTER_ENCOUNTERS + 1))
+  local timer=30
+  if [ "$bypassed" -eq 1 ]; then
+    timer=15
+  fi
+
+  clear_screen
+  printf 'COOKIE MONSTER WANTS A COOKIE\n'
+  if [ "$bypassed" -eq 1 ]; then
+    printf 'Escape bypass detected.\n'
+  fi
+
+  local satisfied=0
+  while [ "$satisfied" -eq 0 ]; do
+    printf '\nGive me a cookie, please. Timer is %s seconds.\n' "$timer"
+    printf 'Try: cookie, feed, trick, magic, glitch, burn, dough, plead, no\n'
+    printf 'COOKIE: '
+
+    local user_input
+    user_input="$(read_input "$timer")"
+    user_input="$(printf '%s' "$user_input" | tr '[:upper:]' '[:lower:]' | tr -d '\r')"
+
+    case "$user_input" in
+      __TIMEOUT__)
+        COOKIE_MONSTER_REFUSALS=$((COOKIE_MONSTER_REFUSALS + 1))
+        COOKIE_MONSTER_TIME_OUTS=$((COOKIE_MONSTER_TIME_OUTS + 1))
+        printf 'Too slow! The monster is impatient.\n'
+        ;;
+      cookie|cookies|chocolate\ chip|oreo)
+        COOKIE_MONSTER_COOKIES_EATEN=$((COOKIE_MONSTER_COOKIES_EATEN + 1))
+        satisfied=1
+        ;;
+      feed)
+        if [ "$COOKIE_MONSTER_BAKED" -gt 0 ]; then
+          COOKIE_MONSTER_BAKED=$((COOKIE_MONSTER_BAKED - 1))
+          COOKIE_MONSTER_COOKIES_EATEN=$((COOKIE_MONSTER_COOKIES_EATEN + 1))
+          satisfied=1
+        else
+          COOKIE_MONSTER_REFUSALS=$((COOKIE_MONSTER_REFUSALS + 1))
+          printf 'No baked cookies in inventory.\n'
+        fi
+        ;;
+      trick)
+        if [ "$COOKIE_MONSTER_OATMEAL" -gt 0 ]; then
+          COOKIE_MONSTER_OATMEAL=$((COOKIE_MONSTER_OATMEAL - 1))
+          COOKIE_MONSTER_COOKIES_EATEN=$((COOKIE_MONSTER_COOKIES_EATEN + 1))
+          COOKIE_MONSTER_MISSIONS=$((COOKIE_MONSTER_MISSIONS + 1))
+          satisfied=1
+        else
+          COOKIE_MONSTER_REFUSALS=$((COOKIE_MONSTER_REFUSALS + 1))
+        fi
+        ;;
+      magic)
+        if [ "$COOKIE_MONSTER_GLITTER" -gt 0 ]; then
+          COOKIE_MONSTER_GLITTER=$((COOKIE_MONSTER_GLITTER - 1))
+          COOKIE_MONSTER_COOKIES_EATEN=$((COOKIE_MONSTER_COOKIES_EATEN + 1))
+          COOKIE_MONSTER_GLITTER_FED=$((COOKIE_MONSTER_GLITTER_FED + 1))
+          satisfied=1
+        else
+          COOKIE_MONSTER_REFUSALS=$((COOKIE_MONSTER_REFUSALS + 1))
+        fi
+        ;;
+      glitch)
+        if [ "$COOKIE_MONSTER_GLITCH" -gt 0 ]; then
+          COOKIE_MONSTER_GLITCH=$((COOKIE_MONSTER_GLITCH - 1))
+          COOKIE_MONSTER_COOKIES_EATEN=$((COOKIE_MONSTER_COOKIES_EATEN + 1))
+          printf 'GLITCH COOKIE ACTIVATED\n'
+          satisfied=1
+        else
+          COOKIE_MONSTER_REFUSALS=$((COOKIE_MONSTER_REFUSALS + 1))
+        fi
+        ;;
+      burn)
+        COOKIE_MONSTER_BURNT=$((COOKIE_MONSTER_BURNT + 1))
+        COOKIE_MONSTER_REFUSALS=$((COOKIE_MONSTER_REFUSALS + 1))
+        ;;
+      dough|junk)
+        COOKIE_MONSTER_JUNK=$((COOKIE_MONSTER_JUNK + 1))
+        COOKIE_MONSTER_REFUSALS=$((COOKIE_MONSTER_REFUSALS + 1))
+        ;;
+      plead|please|mercy|sorry)
+        if [ "$COOKIE_MONSTER_REFUSALS" -lt 3 ]; then
+          COOKIE_MONSTER_COOKIES_EATEN=$((COOKIE_MONSTER_COOKIES_EATEN + 1))
+          satisfied=1
+        else
+          COOKIE_MONSTER_REFUSALS=$((COOKIE_MONSTER_REFUSALS + 1))
+        fi
+        ;;
+      no)
+        COOKIE_MONSTER_REFUSALS=$((COOKIE_MONSTER_REFUSALS + 1))
+        beep
+        ;;
+      '')
+        COOKIE_MONSTER_REFUSALS=$((COOKIE_MONSTER_REFUSALS + 1))
+        printf 'Try again, %s is still hungry.\n' "$COOKIE_MONSTER_MONSTER_NAME"
+        ;;
+      *)
+        COOKIE_MONSTER_REFUSALS=$((COOKIE_MONSTER_REFUSALS + 1))
+        printf 'Try again, %s is still hungry.\n' "$COOKIE_MONSTER_MONSTER_NAME"
+        ;;
+    esac
+  done
+
+  printf '\nOm nom nom.\n'
+  save_state
+}
+
+installer_menu() {
+  if ! is_tty; then
+    printf 'InstallLocal\n'
+    return 0
+  fi
+
+  show_banner 'COOKIE MONSTER INSTALLER' 'Native macOS/Linux install and update mode'
+  printf '\nChoose what Cookie Monster should do:\n'
+  printf '  [1] Install from this repo copy\n'
+  printf '  [2] Update now only (download to cache)\n'
+  printf '  [3] Automatically install latest release\n'
+  printf '  [4] Exit\n\n'
+  printf 'Enter choice (1-4): '
+
+  local choice
+  choice="$(read_input 0)"
+
+  case "$choice" in
+    2) printf 'UpdateNow\n' ;;
+    3) printf 'AutoInstall\n' ;;
+    4) printf 'Exit\n' ;;
+    *) printf 'InstallLocal\n' ;;
+  esac
+}
+
+main() {
+  ensure_dir "$config_dir"
+  ensure_dir "$data_dir"
+  ensure_dir "$cache_dir"
+  ensure_dir "$cache_dir/downloads"
+  ensure_dir "$cache_dir/stage"
+
+  load_state
+
+  local action=''
+  local -a args=("$@")
+  if [ "$#" -eq 0 ]; then
+    action="$(installer_menu)"
+    action="$(printf '%s' "$action" | tr -d '\r\n')"
+  else
+    action="${1:-}"
+  fi
+
+  case "$action" in
+    --on)
+      COOKIE_MONSTER_ENABLED=1
+      save_state
+      printf 'Random encounters enabled.\n'
+      ;;
+    --off)
+      COOKIE_MONSTER_ENABLED=0
+      save_state
+      printf 'Random encounters disabled.\n'
+      ;;
+    --toggle)
+      if [ "$COOKIE_MONSTER_ENABLED" -eq 1 ]; then
+        COOKIE_MONSTER_ENABLED=0
+      else
+        COOKIE_MONSTER_ENABLED=1
+      fi
+      save_state
+      printf 'Random encounters toggled.\n'
+      ;;
+    --scoreboard)
+      scoreboard
+      ;;
+    --bake)
+      bake_cookie
+      ;;
+    --settings)
+      settings_menu
+      ;;
+    --help|-h|help)
+      help_text
+      ;;
+    --repo)
+      printf '%s\n' "$REPO_DEFAULT"
+      ;;
+    InstallLocal|'')
+      spinner 'Preparing native Cookie Monster install...' 1
+      interactive_monster 0
+      ;;
+    UpdateNow)
+      printf 'Use install.sh --update-now to refresh the cache.\n'
+      ;;
+    AutoInstall)
+      printf 'Use install.sh --auto-install to install the latest release.\n'
+      ;;
+    Exit)
+      printf 'Installer canceled.\n'
+      ;;
+    *)
+      interactive_monster 0
+      ;;
+  esac
+}
+
+main "$@"
