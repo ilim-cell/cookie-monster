@@ -1,0 +1,38 @@
+name: Bug report
+about: Report a problem with the Cookie Monster profile or installer.
+title: '[bug] '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please include enough detail to reproduce the issue.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps.
+      placeholder: |
+        1. Run ...
+        2. Click ...
+        3. Cookie Monster explodes.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Paste any terminal output, errors, or screenshots.
+  - type: input
+    id: powerShellVersion
+    attributes:
+      label: PowerShell version
+      placeholder: '7.x'

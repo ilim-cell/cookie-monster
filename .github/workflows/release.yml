@@ -1,0 +1,91 @@
+name: Release
+
+'on':
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Parse PowerShell scripts
+        run: |
+          $files = @(
+            'CookieMonster.profile.ps1',
+            'install.ps1'
+          )
+
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $file), [ref]$tokens, [ref]$errors) | Out-Null
+
+            if ($errors.Count -gt 0) {
+              Write-Host "Parse errors in $file:" -ForegroundColor Red
+              $errors | ForEach-Object { Write-Host $_.Message -ForegroundColor Red }
+              exit 1
+            }
+          }
+
+      - name: Smoke test command loading
+        env:
+          CI: true
+        run: |
+          . (Join-Path $PWD 'CookieMonster.profile.ps1')
+
+          foreach ($command in 'cookie', 'Show-CookieScoreboard', 'Show-CookieHelp', 'Show-CookieSettingsMenu') {
+            if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
+              throw "Missing command: $command"
+            }
+          }
+
+  build-release:
+    needs: verify-release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Package distributable files
+        run: |
+          $packageRoot = Join-Path $PWD 'dist'
+          New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
+
+          $archivePath = Join-Path $packageRoot 'cookie-monster.zip'
+          if (Test-Path $archivePath) {
+            Remove-Item $archivePath -Force
+          }
+
+          Compress-Archive -Path @(
+            'CookieMonster.profile.ps1',
+            'install.ps1',
+            'README.md'
+          ) -DestinationPath $archivePath
+
+          Write-Host "Created $archivePath"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/cookie-monster.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

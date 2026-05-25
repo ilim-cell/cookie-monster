@@ -55,6 +55,14 @@ If you prefer a native POSIX installer (no PowerShell required), use the provide
 
 This installs the native `cookie` CLI into your XDG data directory (default: `~/.local/share/cookie-monster`) and creates a shim in `~/.local/bin` if available.
 
+Directories used by the native installer
+
+- Data: ${XDG_DATA_HOME:-~/.local/share}/cookie-monster
+- Config (settings): ${XDG_CONFIG_HOME:-~/.config}/cookie-monster
+- Cache (downloads & stage): ${XDG_CACHE_HOME:-~/.cache}/cookie-monster
+
+If you don't have PowerShell on your macOS or Linux machine, the native installer provides a fully POSIX-compatible CLI implemented in `cookie` and managed by `install.sh`.
+
 ## Cross-platform notes
 
 - The installer targets PowerShell 7 on Windows, macOS, and Linux.

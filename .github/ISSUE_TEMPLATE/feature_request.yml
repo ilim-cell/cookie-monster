@@ -1,0 +1,30 @@
+name: Feature request
+about: Suggest an enhancement for the Cookie Monster profile or installer.
+title: '[feature] '
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share the change you'd like to see. Bonus points if it comes with a cookie.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to change?
+      description: Describe the feature and why it would be useful.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed implementation
+      description: If you have an idea for how it should work, add it here.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: I want this change in the profile fragment.
+        - label: I want this change in the installer.
+        - label: I want this change in CI/CD.
