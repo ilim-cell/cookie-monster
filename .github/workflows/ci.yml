@@ -1,0 +1,71 @@
+name: CI
+
+'on':
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Parse PowerShell scripts
+        run: |
+          $files = @(
+            'CookieMonster.profile.ps1',
+            'install.ps1'
+          )
+
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $file), [ref]$tokens, [ref]$errors) | Out-Null
+
+            if ($errors.Count -gt 0) {
+              Write-Host "Parse errors in $file:" -ForegroundColor Red
+              $errors | ForEach-Object { Write-Host $_.Message -ForegroundColor Red }
+              exit 1
+            }
+          }
+
+      - name: Smoke test command loading
+        env:
+          CI: true
+        run: |
+          . (Join-Path $PWD 'CookieMonster.profile.ps1')
+
+          foreach ($command in 'cookie', 'Show-CookieScoreboard', 'Show-CookieHelp', 'Show-CookieSettingsMenu') {
+            if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
+              throw "Missing command: $command"
+            }
+          }
+
+      - name: Validate install script help
+        run: |
+          $help = Get-Help .\install.ps1 -Full
+          if (-not $help) {
+            throw 'PowerShell help could not be loaded for install.ps1.'
+          }
+
+      - name: Smoke test native CLI (non-Windows)
+        if: matrix.os != 'windows-latest'
+        run: |
+          set -e
+          chmod +x ./cookie || true
+          ./cookie --help >/dev/null
