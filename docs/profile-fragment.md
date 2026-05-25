@@ -12,10 +12,10 @@ Globals & storage
 Key functions provided by the fragment
 
 - `Save-CookieSettings` — Persist the `CookieSettings` ordered hashtable to JSON on disk.
-- `Write-CookieBeep` — Attempt a beep via `[Console]::Beep()` on Windows when beeps enabled.
+- `Invoke-CookieBeep` — Attempt a beep via `[Console]::Beep()` on Windows when beeps enabled.
 - `Read-CookiePrompt` — Read input with optional timeout; provides a timeout token value when timed out.
 - `Start-BakingAnimation` — Interactive cookie baking flow (updates baked counters).
-- `Show-GlitchScreenAnimation` — Best-effort glitch animation; guarded on Windows for console color support.
+- `Invoke-GlitchScreenAnimation` — Best-effort glitch animation; guarded on Windows for console color support.
 - `Show-CookieScoreboard` — Print counters and achievements.
 - `Show-CookieSettingsMenu` — Interactive settings menu (change encounter chance, toggle beeps, rename monster, reset scoreboards).
 - `Show-CookieHelp` — Print help for the `cookie` command.

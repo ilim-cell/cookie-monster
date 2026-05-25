@@ -57,8 +57,7 @@ function Save-CookieSettings {
     }
 }
 
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
-function Write-CookieBeep {
+function Invoke-CookieBeep {
     param(
         [int]$Frequency,
         [int]$Duration
@@ -69,8 +68,6 @@ function Write-CookieBeep {
     }
 }
 
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidAssignmentToAutomaticVariable', '')]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseDeclaredVarsMoreThanAssignments', '')]
 function Read-CookiePrompt {
     param(
         [int]$TimeoutSeconds = 0
@@ -80,8 +77,8 @@ function Read-CookiePrompt {
         return (Read-Host)
     }
 
-    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    while ((Get-Date) -lt $deadline) {
+    $cutoffTime = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $cutoffTime) {
         if ([Console]::KeyAvailable) {
             return (Read-Host)
         }
@@ -123,8 +120,7 @@ function Start-BakingAnimation {
     }
 }
 
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
-function Show-GlitchScreenAnimation {
+function Invoke-GlitchScreenAnimation {
     $global:GlitchesTriggered++
 
     if (-not $IsWindows) {
@@ -278,21 +274,21 @@ function Start-CookieMonster {
             Write-Host ('Give me a cookie, please. Timer is ' + $timerSeconds + ' seconds.') -ForegroundColor Cyan
             Write-Host "Try: cookie, feed, trick, magic, glitch, burn, dough, plead, no" -ForegroundColor Gray
             Write-Host -NoNewline 'COOKIE: ' -ForegroundColor Cyan
-            $userInput = Read-CookiePrompt -TimeoutSeconds $timerSeconds
-            if ($null -eq $userInput) {
-                $cleanInput = ''
+            $replyText = Read-CookiePrompt -TimeoutSeconds $timerSeconds
+            if ($null -eq $replyText) {
+                $cleanReply = ''
             } else {
-                $cleanInput = $userInput.Trim().ToLower()
+                $cleanReply = $replyText.Trim().ToLower()
             }
 
-            if ($cleanInput -eq '___timeout___') {
+            if ($cleanReply -eq '___timeout___') {
                 $global:CookieRefusals++
                 $global:TimeoutFailures++
                 Write-Host 'Too slow! The monster is impatient.' -ForegroundColor Red
                 continue
             }
 
-            switch -Regex ($cleanInput) {
+            switch -Regex ($cleanReply) {
                 '^cookie(s)?$|^chocolate chip$|^oreo$' {
                     $global:CookiesEaten++
                     $satisfied = $true
@@ -331,7 +327,7 @@ function Start-CookieMonster {
                     if ($global:GlitchCookies -gt 0) {
                         $global:GlitchCookies--
                         $global:CookiesEaten++
-                        Show-GlitchScreenAnimation
+                        Invoke-GlitchScreenAnimation
                         $satisfied = $true
                     } else {
                         $global:CookieRefusals++
@@ -358,7 +354,7 @@ function Start-CookieMonster {
                 }
                 '^no$' {
                     $global:CookieRefusals++
-                    Write-CookieBeep 900 100
+                    Invoke-CookieBeep 900 100
                 }
                 default {
                     $global:CookieRefusals++
