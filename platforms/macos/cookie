@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# macOS native cookie CLI (same as linux)
+
+$(sed -n '1,400p' "c:\Users\Class\3D Objects\Code\cookie-monster\cookie" 2>/dev/null || cat <<'EOF'
+# fallback content
+EOF)
