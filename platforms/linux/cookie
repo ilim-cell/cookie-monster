@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Linux native cookie CLI (copy of root cookie)
-
-$(sed -n '1,400p' "c:\Users\Class\3D Objects\Code\cookie-monster\cookie" 2>/dev/null || cat <<'EOF'
-#!/usr/bin/env bash
 set -euo pipefail
 
 APP_NAME='cookie-monster'

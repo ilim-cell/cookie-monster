@@ -1,6 +1,116 @@
 #!/usr/bin/env bash
-# macOS native cookie CLI (same as linux)
+set -euo pipefail
 
-$(sed -n '1,400p' "c:\Users\Class\3D Objects\Code\cookie-monster\cookie" 2>/dev/null || cat <<'EOF'
-# fallback content
-EOF)
+APP_NAME='cookie-monster'
+REPO_DEFAULT='ilim-cell/cookie-monster'
+
+home_dir="${HOME:-$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6 || printf '%s' "$PWD") }"
+config_dir="${COOKIE_MONSTER_CONFIG_DIR:-${XDG_CONFIG_HOME:-$home_dir/.config}/cookie-monster}"
+data_dir="${COOKIE_MONSTER_DATA_DIR:-${XDG_DATA_HOME:-$home_dir/.local/share}/cookie-monster}"
+cache_dir="${COOKIE_MONSTER_CACHE_DIR:-${XDG_CACHE_HOME:-$home_dir/.cache}/cookie-monster}"
+state_file="$data_dir/state.env"
+settings_file="$config_dir/settings.env"
+
+ensure_dir() {
+	mkdir -p "$1"
+}
+
+shell_quote() {
+	local value="${1-}"
+	printf "'%s'" "${value//\'/\'\\\'\'}"
+}
+
+save_env_file() {
+	local path="$1"
+	shift
+
+	ensure_dir "$(dirname "$path")"
+	: >"$path"
+
+	while [ "$#" -gt 0 ]; do
+		local key="$1"
+		local value="$2"
+		shift 2
+		printf '%s=%s\n' "$key" "$(shell_quote "$value")" >>"$path"
+	done
+}
+
+load_env_file() {
+	local path="$1"
+	if [ -f "$path" ]; then
+		# shellcheck disable=SC1090
+		. "$path"
+	fi
+}
+
+init_defaults() {
+	: "${COOKIE_MONSTER_ENABLED:=0}"
+	: "${COOKIE_MONSTER_ENCOUNTERS:=0}"
+	: "${COOKIE_MONSTER_COOKIES_EATEN:=0}"
+	: "${COOKIE_MONSTER_REFUSALS:=0}"
+	: "${COOKIE_MONSTER_BAKED:=0}"
+	: "${COOKIE_MONSTER_OATMEAL:=0}"
+	: "${COOKIE_MONSTER_GLITTER:=0}"
+	: "${COOKIE_MONSTER_BURNT:=0}"
+	: "${COOKIE_MONSTER_RAW_DOUGH:=0}"
+	: "${COOKIE_MONSTER_JUNK:=0}"
+	: "${COOKIE_MONSTER_GLITCH:=0}"
+	: "${COOKIE_MONSTER_CUSTOM:=0}"
+	: "${COOKIE_MONSTER_TIME_OUTS:=0}"
+	: "${COOKIE_MONSTER_GLITTER_FED:=0}"
+	: "${COOKIE_MONSTER_MISSIONS:=0}"
+	: "${COOKIE_MONSTER_ESCAPES:=0}"
+	: "${COOKIE_MONSTER_BEEPS_ENABLED:=1}"
+	: "${COOKIE_MONSTER_ENCOUNTER_CHANCE:=5}"
+	: "${COOKIE_MONSTER_MONSTER_NAME:=Cookie Monster}"
+}
+
+save_settings() {
+	save_env_file "$settings_file" \
+		COOKIE_MONSTER_BEEPS_ENABLED "$COOKIE_MONSTER_BEEPS_ENABLED" \
+		COOKIE_MONSTER_ENCOUNTER_CHANCE "$COOKIE_MONSTER_ENCOUNTER_CHANCE" \
+		COOKIE_MONSTER_MONSTER_NAME "$COOKIE_MONSTER_MONSTER_NAME"
+}
+
+save_state() {
+	save_env_file "$state_file" \
+		COOKIE_MONSTER_ENABLED "$COOKIE_MONSTER_ENABLED" \
+		COOKIE_MONSTER_ENCOUNTERS "$COOKIE_MONSTER_ENCOUNTERS" \
+		COOKIE_MONSTER_COOKIES_EATEN "$COOKIE_MONSTER_COOKIES_EATEN" \
+		COOKIE_MONSTER_REFUSALS "$COOKIE_MONSTER_REFUSALS" \
+		COOKIE_MONSTER_BAKED "$COOKIE_MONSTER_BAKED" \
+		COOKIE_MONSTER_OATMEAL "$COOKIE_MONSTER_OATMEAL" \
+		COOKIE_MONSTER_GLITTER "$COOKIE_MONSTER_GLITTER" \
+		COOKIE_MONSTER_BURNT "$COOKIE_MONSTER_BURNT" \
+		COOKIE_MONSTER_RAW_DOUGH "$COOKIE_MONSTER_RAW_DOUGH" \
+		COOKIE_MONSTER_JUNK "$COOKIE_MONSTER_JUNK" \
+		COOKIE_MONSTER_GLITCH "$COOKIE_MONSTER_GLITCH" \
+		COOKIE_MONSTER_CUSTOM "$COOKIE_MONSTER_CUSTOM" \
+		COOKIE_MONSTER_TIME_OUTS "$COOKIE_MONSTER_TIME_OUTS" \
+		COOKIE_MONSTER_GLITTER_FED "$COOKIE_MONSTER_GLITTER_FED" \
+		COOKIE_MONSTER_MISSIONS "$COOKIE_MONSTER_MISSIONS" \
+		COOKIE_MONSTER_ESCAPES "$COOKIE_MONSTER_ESCAPES"
+}
+
+load_state() {
+	load_env_file "$state_file"
+	load_env_file "$settings_file"
+	init_defaults
+}
+
+is_tty() {
+	[ -t 0 ] && [ -t 1 ]
+}
+
+clear_screen() {
+	if command -v clear >/dev/null 2>&1; then
+		clear
+	elif is_tty; then
+		printf '\033[H\033[J'
+	fi
+}
+
+show_banner() {
+	local title="${1:-COOKIE MONSTER}"
+	local subtitle="${2:-Native cross-platform shell mode}"
+	local line='===================================================================='
