@@ -66,6 +66,8 @@ If you don't have PowerShell on your macOS or Linux machine, the native installe
 See `docs/INSTALL.md` for per-platform installation instructions, troubleshooting, and packaging notes.
 Also see the docs index: `docs/index.md` for per-topic documentation (CLI, installers, PowerShell, developer notes).
 
+The docs are also published as a GitHub Pages site from `docs/` via `.github/workflows/pages.yml`.
+
 ## Cross-platform notes
 
 - The installer targets PowerShell 7 on Windows, macOS, and Linux.

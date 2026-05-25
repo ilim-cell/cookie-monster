@@ -1,0 +1,9 @@
+title: Cookie Monster Documentation
+subtitle: Native installers, PowerShell integration, and developer notes
+markdown: kramdown
+theme: minima
+plugins:
+  - jekyll-relative-links
+relative_links:
+  enabled: true
+  collections: true
