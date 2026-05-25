@@ -17,7 +17,9 @@ This project supports both PowerShell and native installers for each OS. The nat
 ```
 
 Notes:
-- The scripts use `curl` and `unzip`. Most macOS and Linux distributions include these. If not available, install them via your package manager (e.g., `apt`, `yum`, `brew`).
+- The scripts prefer `curl` + `unzip`/`tar` but will fall back to Python's `zipfile` module if necessary.
+- On Windows, the batch installer will attempt to use PowerShell's `Invoke-WebRequest` and `Expand-Archive` if `curl`/`tar` are not available.
+- I included `check-deps.sh` which verifies common tooling and explains how to install missing tools on your OS.
 
 ## Windows (native batch)
 

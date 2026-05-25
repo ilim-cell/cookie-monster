@@ -10,19 +10,27 @@ set "TMP_ZIP=%TEMP%\cookie-monster.zip"
 
 :download
 echo Downloading latest release...
-curl -L -o "%TMP_ZIP%" "https://github.com/ilim-cell/cookie-monster/releases/latest/download/cookie-monster.zip"
+curl -L -o "%TMP_ZIP%" "https://github.com/ilim-cell/cookie-monster/releases/latest/download/cookie-monster.zip" 2>nul
 if errorlevel 1 (
-  echo Failed to download release. Ensure curl is available.
-  exit /b 1
+  echo curl not available or failed; attempting PowerShell fallback...
+  powershell -NoProfile -Command "try { Invoke-WebRequest -Uri 'https://github.com/ilim-cell/cookie-monster/releases/latest/download/cookie-monster.zip' -OutFile '%TMP_ZIP%'; exit 0 } catch { exit 1 }"
+  if errorlevel 1 (
+    echo Failed to download release. Ensure curl or PowerShell is available.
+    exit /b 1
+  )
 )
 
 :extract
 echo Extracting to %INSTALL_DIR%...
 mkdir "%INSTALL_DIR%" 2>nul
-tar -xf "%TMP_ZIP%" -C "%INSTALL_DIR%"
+tar -xf "%TMP_ZIP%" -C "%INSTALL_DIR%" 2>nul
 if errorlevel 1 (
-  echo Failed to extract archive. Ensure tar is available.
-  exit /b 1
+  echo tar extraction failed or tar not available; attempting PowerShell Expand-Archive fallback...
+  powershell -NoProfile -Command "try { Expand-Archive -LiteralPath '%TMP_ZIP%' -DestinationPath '%INSTALL_DIR%' -Force; exit 0 } catch { exit 1 }"
+  if errorlevel 1 (
+    echo Failed to extract archive. Ensure tar, Expand-Archive (PowerShell) or unzip is available.
+    exit /b 1
+  )
 )
 
 :shim
