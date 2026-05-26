@@ -6,6 +6,9 @@ name: CI
       - main
       - master
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
 
 permissions:
   contents: read
@@ -62,6 +65,15 @@ jobs:
           if (-not $help) {
             throw 'PowerShell help could not be loaded for install.ps1.'
           }
+
+      - name: Validate native shell scripts (non-Windows)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n ./cookie ./install.sh ./check-deps.sh
+          chmod +x ./install.sh
+          ./install.sh --help >/dev/null
 
       - name: Smoke test native CLI (non-Windows)
         if: matrix.os != 'windows-latest'
