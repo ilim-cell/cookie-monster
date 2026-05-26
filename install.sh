@@ -58,7 +58,20 @@ extract_zip() {
   ensure_dir "$STAGE_DIR"
   rm -rf "$STAGE_DIR"/* || true
   spinner "Extracting release..." 1
-  unzip -q "$zip" -d "$STAGE_DIR"
+
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -q "$zip" -d "$STAGE_DIR"
+  elif command -v tar >/dev/null 2>&1; then
+    tar -xf "$zip" -C "$STAGE_DIR"
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -c "import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$zip" "$STAGE_DIR"
+  elif command -v python >/dev/null 2>&1; then
+    python -c "import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$zip" "$STAGE_DIR"
+  else
+    echo "No tool found to extract zip archives. Install 'unzip', 'tar' or Python." >&2
+    return 1
+  fi
+
   echo "$STAGE_DIR"
 }
 

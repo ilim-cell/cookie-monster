@@ -1,3 +1,58 @@
+<#
+.SYNOPSIS
+    Installs or updates the Cookie Monster PowerShell profile fragment.
+
+.DESCRIPTION
+    Downloads or copies the CookieMonster.profile.ps1 fragment and injects a
+    dot-source block into the current user's PowerShell profile so that the
+    cookie command and random encounter hook are available in every session.
+
+    Three modes are supported:
+      InstallLocal  – copy the fragment from this repo (default)
+      UpdateNow     – download the latest GitHub release into the local cache
+      AutoInstall   – download and immediately install the latest GitHub release
+
+.PARAMETER SourcePath
+    Path to the CookieMonster.profile.ps1 fragment to install locally.
+    Defaults to the file alongside this script.
+
+.PARAMETER TargetProfilePath
+    Destination PowerShell profile to inject the dot-source block into.
+    Defaults to $PROFILE (CurrentUserCurrentHost).
+
+.PARAMETER TargetFragmentPath
+    Where to copy the profile fragment on disk.
+    Defaults to a sibling file next to the target profile.
+
+.PARAMETER Repository
+    GitHub repository slug used when downloading a release.
+    Defaults to ilim-cell/cookie-monster.
+
+.PARAMETER CachePath
+    Local directory used to store downloaded release archives.
+    Defaults to ~/.cache/cookie-monster.
+
+.PARAMETER UpdateNow
+    Download the latest release into the cache without installing it.
+
+.PARAMETER AutoInstall
+    Download the latest release and install it immediately.
+
+.PARAMETER Force
+    Overwrite existing cached downloads and profile backups.
+
+.EXAMPLE
+    .\install.ps1
+    Runs the interactive installer menu (InstallLocal is the default choice).
+
+.EXAMPLE
+    .\install.ps1 -AutoInstall
+    Downloads and installs the latest release non-interactively.
+
+.EXAMPLE
+    .\install.ps1 -UpdateNow
+    Downloads the latest release into the cache for later use.
+#>
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$SourcePath = (Join-Path $PSScriptRoot 'CookieMonster.profile.ps1'),
